@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $mcpPrefix = 'mcp';
+        $middleware->validateCsrfTokens(except: [
+            $mcpPrefix,
+            $mcpPrefix.'/*',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
