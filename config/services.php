@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'embedding_endpoint' => env('GEMINI_EMBEDDING_ENDPOINT', 'https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent'),
+        'query_endpoint' => env('GEMINI_QUERY_ENDPOINT', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'),
+        'completion_model' => env('GEMINI_COMPLETION_MODEL', 'models/gemini-1.5-flash'),
+    ],
+
 ];

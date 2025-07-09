@@ -24,10 +24,15 @@ class VectorEmbeddingService
     }
 
     /**
-     * Generate vector embedding for a text
+     * Generate vector embedding for a text, supporting taskType and title for RAG best practices.
+     * @param string $text
+     * @param string $taskType (RETRIEVAL_DOCUMENT or RETRIEVAL_QUERY)
+     * @param string|null $title (optional, for documents)
+     * @return array
      */
-    public function generateEmbedding(string $text): array
+    public function generateEmbedding(string $text, string $taskType = 'RETRIEVAL_DOCUMENT', ?string $title = null): array
     {
+        // For local model, ignore taskType and title, but keep signature for compatibility
         try {
             $embedding = $this->transformer->embeddings($text);
             return $embedding;

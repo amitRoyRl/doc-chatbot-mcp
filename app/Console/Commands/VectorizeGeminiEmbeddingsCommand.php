@@ -4,26 +4,26 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
-use App\Services\VectorEmbeddingService;
+use App\Services\GeminiEmbeddingService;
 use Illuminate\Support\Str;
 use Exception;
-use App\Models\DocumentVector;
+use App\Models\GeminiEmbedding;
 
-class VectorizeDocsCommand extends Command
+class VectorizeGeminiEmbeddingsCommand extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'vectorize:docs';
+    protected $signature = 'vectorize:gemini {feature?}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Scan feature docs in storage/app/private, vectorize markdown, and store in MongoDB';
+    protected $description = 'Scan markdown files in storage/app/private, generate Gemini embeddings, and store in MongoDB';
 
     /**
      * Execute the console command.
@@ -31,17 +31,21 @@ class VectorizeDocsCommand extends Command
     public function handle()
     {
         $basePath = storage_path('app/private');
-        $vectorService = new VectorEmbeddingService();
+        $geminiService = new GeminiEmbeddingService();
         $featureFolders = array_filter(glob($basePath . '/*'), 'is_dir');
         $count = 0;
+        $featureArg = $this->argument('feature');
 
         foreach ($featureFolders as $folderPath) {
             $featureName = basename($folderPath);
-            $alreadyExists = DocumentVector::where('file_path', $folderPath)
+            if ($featureArg && $featureArg !== $featureName) {
+                continue;
+            }
+            $alreadyExists = GeminiEmbedding::where('title', $featureName)
                 ->where('document_type', 'feature-doc')
                 ->exists();
             if ($alreadyExists) {
-                $this->info("Already vectorized, skipping: $featureName");
+                $this->info("Already embedded, skipping: $featureName");
                 continue;
             }
             $markdownFiles = glob($folderPath . '/*.md');
@@ -52,11 +56,11 @@ class VectorizeDocsCommand extends Command
             $markdownPath = $markdownFiles[0];
             $markdownContent = file_get_contents($markdownPath);
 
-            // Chunking logic: split by paragraphs, max ~30,000 chars per chunk
+            // Split content into paragraphs
             $paragraphs = preg_split('/\n\n+/', $markdownContent);
             $chunks = [];
             $currentChunk = '';
-            $charLimit = 10000;
+            $charLimit = 10000; // Conservative limit for Gemini API
             foreach ($paragraphs as $para) {
                 $para = trim($para);
                 if ($para === '') continue;
@@ -78,11 +82,11 @@ class VectorizeDocsCommand extends Command
             foreach ($chunks as $i => $chunk) {
                 if (trim($chunk) === '') continue;
                 try {
-                    $embedding = $vectorService->generateEmbedding($chunk, 'RETRIEVAL_DOCUMENT', $featureName . " [chunk $i]");
-                    DocumentVector::create([
+                    $embedding = $geminiService->generateEmbedding($chunk, 'RETRIEVAL_DOCUMENT', $featureName . " [chunk $i]");
+                    GeminiEmbedding::create([
                         'document_id' => \Illuminate\Support\Str::uuid()->toString(),
                         'vector_embedding' => $embedding,
-                        'embedding_model' => 'SentenceRopherta',
+                        'embedding_model' => 'gemini-embedding-exp-03-07',
                         'content' => $chunk, // Store the original text chunk
                         'metadata' => [
                             'feature' => $featureName,
@@ -92,7 +96,7 @@ class VectorizeDocsCommand extends Command
                         'file_path' => $markdownPath,
                         'document_type' => 'feature-doc-chunk',
                     ]);
-                    $this->info("Vectorized and stored: $featureName [chunk $i]");
+                    $this->info("Embedded and stored: $featureName [chunk $i]");
                     $chunkCount++;
                 } catch (Exception $e) {
                     $this->error("Failed for $featureName [chunk $i]: " . $e->getMessage());
@@ -100,6 +104,6 @@ class VectorizeDocsCommand extends Command
             }
             $count += $chunkCount;
         }
-        $this->info("Done. Total vectorized chunks: $count");
+        $this->info("Done. Total embedded chunks: $count");
     }
 }

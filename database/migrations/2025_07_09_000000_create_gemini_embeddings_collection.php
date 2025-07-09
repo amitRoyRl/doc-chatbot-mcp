@@ -11,23 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Use Atlas DSN only (no localhost fallback)
         $client = new Client(env('MONGODB_DSN'));
         $database = $client->selectDatabase(env('MONGODB_DATABASE', 'laravel'));
 
-        // Create the document_vectors collection if it doesn't exist
+        // Create the gemini_embeddings collection if it doesn't exist
         $collections = $database->listCollections();
         $exists = false;
         foreach ($collections as $coll) {
-            if ($coll->getName() === 'document_vectors') {
+            if ($coll->getName() === 'gemini_embeddings') {
                 $exists = true;
                 break;
             }
         }
         if (!$exists) {
-            $database->createCollection('document_vectors');
+            $database->createCollection('gemini_embeddings');
         }
-        $collection = $database->selectCollection('document_vectors');
+        $collection = $database->selectCollection('gemini_embeddings');
 
         // Create Atlas vector search index (if supported by your driver/Atlas)
         try {
@@ -35,15 +34,14 @@ return new class extends Migration
                 'fields' => [
                     [
                         'type' => 'vector',
-                        'numDimensions' => 768, // Set this to your actual embedding size
-                        'path' => 'vector_embedding', // The field storing your vectors
-                        'similarity' => 'cosine' // Or 'dotProduct'
+                        'numDimensions' => 3072, // Gemini embedding size
+                        'path' => 'vector_embedding',
+                        'similarity' => 'cosine'
                     ],
                 ],
             ], ['name' => 'vector_embedding_index', 'type' => 'vectorSearch']);
         } catch (\Exception $e) {
             // Log or ignore if not supported
-            // echo "Could not create vector search index: " . $e->getMessage();
         }
 
         // Create indexes for efficient vector similarity search
@@ -82,6 +80,6 @@ return new class extends Migration
     {
         $client = new Client(env('MONGODB_DSN'));
         $database = $client->selectDatabase(env('MONGODB_DATABASE', 'laravel'));
-        $database->dropCollection('document_vectors');
+        $database->dropCollection('gemini_embeddings');
     }
 };

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DocumentVectorController;
+use App\Http\Controllers\GeminiEmbeddingController;
 
 // Document Vector API Routes
 Route::prefix('documents')->group(function () {
@@ -15,3 +16,6 @@ Route::prefix('documents')->group(function () {
     Route::put('/{documentId}', [DocumentVectorController::class, 'update']);
     Route::delete('/{documentId}', [DocumentVectorController::class, 'destroy']);
 });
+
+Route::post('/gemini/chat', [GeminiEmbeddingController::class, 'chatWithContext']);
+Route::post('/gemini/chat-gemini', [GeminiEmbeddingController::class, 'chatWithGeminiEmbeddings']);
