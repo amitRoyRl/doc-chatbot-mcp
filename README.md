@@ -1,61 +1,86 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Gemini RAG App (Laravel + MongoDB + Google Gemini)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Setup Instructions
 
-## About Laravel
+1. **Clone the repository:**
+   ```bash
+   git clone <your-repo-url>
+   cd <your-repo-directory>
+   ```
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+2. **Copy and configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env to set your MongoDB DSN, database, and Gemini API key
+   ```
+   - Set `MONGODB_DSN` and `MONGODB_DATABASE` for your MongoDB Atlas instance.
+   - Set `GEMINI_API_KEY` for your Google Gemini API key.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+3. **Install dependencies:**
+   ```bash
+   ./vendor/bin/sail up -d
+   ./vendor/bin/sail composer install
+   ./vendor/bin/sail npm install && ./vendor/bin/sail npm run dev
+   ```
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+4. **Run migrations:**
+   ```bash
+   ./vendor/bin/sail artisan migrate
+   ```
 
-## Learning Laravel
+5. **Vectorize your documents:**
+   - Place your markdown files in `storage/app/private/<feature-folder>`
+   - Run:
+     ```bash
+     ./vendor/bin/sail artisan vectorize:docs
+     ./vendor/bin/sail artisan vectorize:gemini
+     ```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## API Usage
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 1. Generate Gemini Chat (using local document embeddings)
+```bash
+curl -X POST http://localhost/api/gemini/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is the summary of the groups module?",
+    "limit": 5,
+    "threshold": 0.7
+  }'
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 2. Generate Gemini Chat (using Gemini-generated embeddings)
+```bash
+curl -X POST http://localhost/api/gemini/chat-gemini \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is the summary of the groups module?",
+    "limit": 5,
+    "threshold": 0.7
+  }'
+```
 
-## Laravel Sponsors
+## Troubleshooting & Common Errors
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- **MongoDB connection errors:**
+  - Ensure your `MONGODB_DSN` and `MONGODB_DATABASE` are correct and your IP is whitelisted in Atlas.
+- **Gemini API errors:**
+  - Check your `GEMINI_API_KEY` and Google Cloud billing/quota.
+  - If you see `Invalid Gemini completion API response`, ensure your context documents have a non-empty `content` field.
+- **No context or empty answers:**
+  - Make sure your documents were ingested with the original text in the `content` field.
+  - Re-run vectorization if you update your ingestion logic.
+- **Chunking issues:**
+  - Large markdown files are split into ~10,000 character chunks for embedding. Each chunk is stored as a separate document.
+- **Route not found:**
+  - Make sure you are using the correct API endpoint and HTTP method (POST).
 
-### Premium Partners
+## Notes
+- This app uses chunked document storage for RAG best practices.
+- All context passed to Gemini is original text, never embeddings.
+- You can tune generation parameters in `GeminiEmbeddingService.php` via the `GenerationConfig` array.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Support
+If you encounter issues, check the logs in `storage/logs/laravel.log` for detailed error messages.
 
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+---
