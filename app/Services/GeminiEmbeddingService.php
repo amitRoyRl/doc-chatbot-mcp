@@ -76,25 +76,24 @@ class GeminiEmbeddingService
      * @param array $generationConfig (optional)
      * @return string
      */
-    public function generateCompletionWithContext(string $query, array $contextDocs, array $generationConfig = []): string | array
+    public function generateCompletionWithContext(string $query, array $contextDocs, array $generationConfig = []): string
     {
         $apiKey = $this->apiKey;
         $endpoint = config('services.gemini.query_endpoint', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
 
         // Build the contents array as per Gemini 2.5 API best practices:
-        // Each context chunk is a separate 'user' message, then the query as the final 'user' message.
         $contents = collect($contextDocs)->map(function($doc) {
-            $content = $doc['content'] ?? (is_object($doc) ? $doc->content : '');
-            if (is_array($content)) {
-                $content = implode(",", $content);
-            }
+            $content = $doc['content'] ?? '';
+            $content = is_array($content) ? implode("\n", $content) : $content;
+            $content = trim($content);
+            if ($content === '') return null;
             return [
                 'role' => 'user',
                 'parts' => [
-                    ['text' => "Here is some context:\n".$content]
+                    ['text' => $content]
                 ]
             ];
-        })->values()->all();
+        })->filter()->values()->all();
         // Add the user query as the final message
         $contents[] = [
             'role' => 'user',
@@ -103,10 +102,13 @@ class GeminiEmbeddingService
             ]
         ];
 
-        // return $contents;
+        // Optimized GenerationConfig based on Gemini API best practices
         $defaultConfig = [
-            'temperature' => 1,
-            'maxOutputTokens' => 10240,
+            'temperature' => 0.7, // More deterministic, but not zero
+            'topP' => 0.95,       // Nucleus sampling
+            'topK' => 40,         // Top-K sampling
+            'maxOutputTokens' => 2024, // Reasonable default
+            // 'stopSequences' => ["\nUser:"], // Uncomment to stop at user prompt if needed
         ];
         $generationConfig = array_merge($defaultConfig, $generationConfig);
 
@@ -127,7 +129,10 @@ class GeminiEmbeddingService
                 throw new \Exception('Failed to get completion from Gemini API');
             }
             $data = $response->json();
-            if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
+            if (
+                isset($data['candidates'][0]['content']['parts'][0]['text']) &&
+                !empty($data['candidates'][0]['content']['parts'][0]['text'])
+            ) {
                 return $data['candidates'][0]['content']['parts'][0]['text'];
             }
             \Log::error('Invalid Gemini completion API response', ['response' => $data]);
