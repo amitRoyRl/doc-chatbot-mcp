@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Services\VectorEmbeddingService;
 use Illuminate\Support\Str;
 use Exception;
+use App\Models\DocumentVector;
 
 class VectorizeDocsCommand extends Command
 {
@@ -36,6 +37,14 @@ class VectorizeDocsCommand extends Command
 
         foreach ($featureFolders as $folderPath) {
             $featureName = basename($folderPath);
+            // Check if already vectorized
+            $alreadyExists = DocumentVector::where('title', $featureName)
+                ->where('document_type', 'feature-doc')
+                ->exists();
+            if ($alreadyExists) {
+                $this->info("Already vectorized, skipping: $featureName");
+                continue;
+            }
             $markdownFiles = glob($folderPath . '/*.md');
             if (empty($markdownFiles)) {
                 $this->warn("No markdown file found in $featureName");
