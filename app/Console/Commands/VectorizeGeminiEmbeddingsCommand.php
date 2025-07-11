@@ -60,7 +60,7 @@ class VectorizeGeminiEmbeddingsCommand extends Command
             $paragraphs = preg_split('/\n\n+/', $markdownContent);
             $chunks = [];
             $currentChunk = '';
-            $charLimit = 10000; // Conservative limit for Gemini API
+            $charLimit = 1000; // Conservative limit for Gemini API
             foreach ($paragraphs as $para) {
                 $para = trim($para);
                 if ($para === '') continue;
