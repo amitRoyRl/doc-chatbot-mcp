@@ -81,25 +81,22 @@ class GeminiEmbeddingService
         $apiKey = $this->apiKey;
         $endpoint = config('services.gemini.query_endpoint', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent');
 
-        // Build the contents array as per Gemini 2.5 API best practices:
+        // Build the contents array as per Gemini 2.5 API best practices (no mimeType for text parts):
         $contents = collect($contextDocs)->map(function($doc) {
             $content = $doc['content'] ?? '';
             $content = is_array($content) ? implode("\n", $content) : $content;
             $content = trim($content);
             if ($content === '') return null;
+            // Always send as plain text, even for markdown
             return [
                 'role' => 'user',
-                'parts' => [
-                    ['text' => $content]
-                ]
+                'parts' => [ [ 'text' => $content ] ]
             ];
         })->filter()->values()->all();
         // Add the user query as the final message
         $contents[] = [
             'role' => 'user',
-            'parts' => [
-                ['text' => $query]
-            ]
+            'parts' => [ [ 'text' => $query ] ]
         ];
 
         // Optimized GenerationConfig based on Gemini API best practices
@@ -107,7 +104,7 @@ class GeminiEmbeddingService
             'temperature' => 0.7, // More deterministic, but not zero
             'topP' => 0.95,       // Nucleus sampling
             'topK' => 40,         // Top-K sampling
-            'maxOutputTokens' => 2024, // Reasonable default
+            'maxOutputTokens' => 4024, // Reasonable default
             // 'stopSequences' => ["\nUser:"], // Uncomment to stop at user prompt if needed
         ];
         $generationConfig = array_merge($defaultConfig, $generationConfig);

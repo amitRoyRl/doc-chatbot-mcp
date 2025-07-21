@@ -137,6 +137,20 @@ class GeminiEmbeddingController extends Controller
         }
     }
 
+    public function sanitizeToMarkdown(string $text): string
+{
+    // Convert escaped newlines (\n) to real newlines
+    $text = str_replace("\\n", "\n", $text);
+
+    // Optional: Trim unnecessary whitespace
+    $text = trim($text);
+
+    // Optional: Normalize multiple blank lines
+    $text = preg_replace("/\n{3,}/", "\n\n", $text);
+
+    return $text;
+}
+
     /**
      * Calculate cosine similarity between two vectors
      */
